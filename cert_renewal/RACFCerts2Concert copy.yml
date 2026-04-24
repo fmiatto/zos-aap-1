@@ -1,0 +1,54 @@
+###############################################################################
+# © Copyright IBM Corporation 2025
+###############################################################################
+
+- hosts: all
+  gather_facts: false
+  environment: "{{ environment_vars }}"
+  vars:
+
+    # IBM Concert variables
+    concert_hostname: '9.46.92.164:12443'
+    concert_instance_id: '0000-0000-0000-0000'
+    concert_api_key: "{{ vault_concert_api_key }}"
+    concert_api_key_type: 'C_API_KEY'
+    concert_csv_file: "zos-cert-data.csv"
+
+    # z/OS Variables
+    IRRDBU00_jcl: CONCERT.CERTS.JCLLIB(IRRDBU00)
+    RACFCERT_dsn: CONCERT.CERTS.RACFCERT
+    utc_timezone: '-0400 UTC'
+
+  tasks:
+    - block:
+
+        - name: Run job to extract Certificate data from RACF into a dataset
+          ibm.ibm_zos_core.zos_job_submit:
+            src: "{{IRRDBU00_jcl}}"
+            location: data_set
+            wait_time_s: 30
+          register: IRRDBU00_job_output
+
+        - name: Download dataset with Certificate RACF data to localhost
+          ibm.ibm_zos_core.zos_fetch:
+            src: "{{RACFCERT_dsn}}"
+            dest: "{{ playbook_dir }}/playbook_output/RACFCERT_dsn.txt"
+            flat: true
+
+        - name: Process Certificate RACF data to generate Certificate JSON data
+          ansible.builtin.script: 
+           cmd: RACFCerts2Concert.py  --input "{{ playbook_dir }}/playbook_output/RACFCERT_dsn.txt" --output_json "{{ playbook_dir }}/playbook_output/RACFCerts2Concert.json" --env_name "zos-wsc" --lpar "ESYSMVS1" --output_excel "{{ playbook_dir }}/playbook_output/RACFCerts2Concert.xlsx"
+           executable: /usr/bin/python3
+          delegate_to: localhost
+
+        - name: Upload Certificate JSON data to IBM Concert
+          ansible.builtin.shell: |
+              /usr/bin/curl -k -X POST https://{{ concert_hostname }}/ingestion/api/v1/upload_files \
+                  -H 'Content-Type: multipart/form-data' \
+                  -H 'InstanceId: {{concert_instance_id}}' \
+                  -H 'Accept: application/json' \
+                  -H 'Authorization: {{ concert_api_key_type }} {{ concert_api_key }}' \
+                  -F 'data_type=certificate' \
+                  -F 'filename=@{{ playbook_dir }}/playbook_output/RACFCerts2Concert.json' \
+                  -F 'metadata={"env_name" : "zos-wsc"}'
+          delegate_to: localhost

@@ -1,0 +1,52 @@
+- hosts: esysmvs1
+  gather_facts: false
+  
+  environment: 
+    _BPXK_AUTOCVT: "ON"
+    ZOAU_HOME: "/shared/IBM/zoautil/v1r3"
+    PATH: "/shared/IBM/zoautil/v1r3/bin:/shared/IBM/aln/v3r1/ent/pyz/pyz-311/bin:/bin:/var/bin"
+    LIBPATH: "/shared/IBM/zoautil/v1r3/lib:/shared/IBM/aln/v3r1/ent/pyz/pyz-311/lib:/lib:/usr/lib:."
+    PYTHONPATH: "$PYTHONPATH:/usr/lpp/IBM/zoautil/lib/3.11"
+    _CEE_RUNOPTS: "FILETAG(AUTOCVT,AUTOTAG) POSIX(ON)"
+    _TAG_REDIR_ERR: "txt"
+    _TAG_REDIR_IN: "txt"
+    _TAG_REDIR_OUT: "txt"
+    LANG: "C"
+    PYTHONSTDINENCODING: "cp1047" 
+
+  vars:
+
+    # z/OS Variables
+    LOG_dsn: CONCERT.CERTS.LOG
+
+    # Calculate today's date + 5 days
+    time_diff: "{{ 5 * 24 * 60 * 60 }}" # 5 days into seconds
+    validity_date: "{{ lookup('pipe', 'date -v+5d +\"%Y-%m-%d\"') }}"
+
+    # Current timestamp
+    timestamp: "{{ lookup('pipe', 'date +\"%Y-%m-%d %H:%M:%S\"') }}"
+
+ 
+  tasks:
+    - block:
+      
+      - name: Debug validity_date and timestamp
+        debug:
+          msg: 
+            - "validity_date: {{ validity_date }}"
+            - "timestamp: {{ timestamp }}"
+
+     
+      - name: Create a personal certificate with name "A00 IBM Concert Cert YYYY-MM-DD HH:MM:SS"
+        ibm.ibm_zos_core.zos_tso_command:
+          commands: 
+            - RACDCERT GENCERT SUBJECTSDN(CN('A00 IBM Concert {{ timestamp }}')) WITHLABEL('Concert {{ timestamp }}') SIZE(2048) NOTAFTER(DATE({{ validity_date }}))
+          max_rc: 8
+
+
+      - name: Log Certificate Subject to dataset
+        ibm.ibm_zos_core.zos_lineinfile:
+          src: CONCERT.CERTS.LOG
+          insertafter: EOF
+          force: true
+          line: 'A00 IBM Concert {{ timestamp }}'
