@@ -39,14 +39,7 @@
            executable: /usr/bin/python3
           delegate_to: localhost
 
-        - name: Upload Certificate JSON data to IBM Concert
-          ansible.builtin.shell: |
-              /usr/bin/curl -k https://{{ concert_hostname }}/ingestion/api/v1/upload_files \
-                  -H 'Content-Type: multipart/form-data' \
-                  -H 'InstanceId: {{concert_instance_id}}' \
-                  -H 'Accept: application/json' \
-                  -H 'Authorization: {{ concert_api_key_type }} {{ concert_api_key }}' \
-                  -F 'data_type=certificate' \
-                  -F 'filename=@{{ playbook_dir }}/playbook_output/RACFCerts2Concert.json' \
-                  -F 'metadata={"env_name" : "zos-wsc"}'
+        - name: Display Certificate JSON data nicely
+          ansible.builtin.debug:
+            msg: "{{ lookup('file', playbook_dir + '/playbook_output/RACFCerts2Concert.json') | from_json | to_nice_json }}"
           delegate_to: localhost
