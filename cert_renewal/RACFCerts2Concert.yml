@@ -14,8 +14,8 @@
     concert_api_key_type: 'C_API_KEY'
 
     # z/OS Variables
-    IRRDBU00_jcl: CONCERT.CERTS.JCLLIB(IRRDBU00)
-    RACFCERT_dsn: CONCERT.CERTS.RACFCERT
+    IRRDBU00_jcl: IBMUSER.JCL(IRRDBU00)
+    RACFCERT_dsn: IBMUSER.CERTS.RACFCERT
 
   tasks:
     - block:
