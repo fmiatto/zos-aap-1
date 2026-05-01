@@ -20,6 +20,14 @@
   tasks:
     - block:
 
+        - name: Install required Python modules for local script execution
+          ansible.builtin.pip:
+            name: 
+              - openpyxl
+              - colorama
+            state: present
+          delegate_to: localhost
+          
         - name: Run job to extract Certificate data from RACF into a dataset
           ibm.ibm_zos_core.zos_job_submit:
             src: "{{IRRDBU00_jcl}}"
