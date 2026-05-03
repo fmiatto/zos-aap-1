@@ -63,7 +63,7 @@
     #     msg: "{{ system_name }}"
 
     - name: Submit z/OS operator command.
-      zos_operator:
+      ibm.ibm_zos_core.zos_operator:
         cmd: "{{ zos_operator_command  }}"
         wait_time_s: "{{ wait_time_s }}"
         verbose: "{{ verbose }}"
