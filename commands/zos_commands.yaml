@@ -43,6 +43,9 @@
   vars:
     tgt_tmp_dir: "/tmp"
     ctl_tmp_dir: "/tmp"
+    zos_operator_command: "{{ zos_operator_command_survey | default('D M=CPU') }}"
+    wait_time_s: "{{ wait_time_s_survey | default('1') }}"
+    verbose: "{{ verbose_survey | default('false') }}"
   environment: "{{ environment_vars }}"
 
   tasks:
