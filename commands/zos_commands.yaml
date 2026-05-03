@@ -77,3 +77,9 @@
     - name: Response from operator command.
       debug:
         msg: "{{ result_zos_operator.content }}"
+
+    - name: Expose the output to the AAP API as an artifact
+      set_stats:
+        data:
+          # This key will appear in the job's API response under "artifacts"
+          agent_inline_output: "{{ result_zos_operator.content | default('No command output returned') }}"
