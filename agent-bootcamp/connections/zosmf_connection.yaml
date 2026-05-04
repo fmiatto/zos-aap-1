@@ -1,0 +1,14 @@
+spec_version: v1
+kind: connection
+app_id: zosmf
+environments:
+    draft:  # in draft each person needs to provide their own basic credentials
+        kind: basic
+        type: team
+        server_url: https://52.116.130.216:10443/zosmf/
+        ssl_protocol: TLSv1.2  # Add this
+    live:
+        kind: basic # note it's possible to auth different in the deployed live agent vs the draft agent
+        type: member
+        server_url: https://52.116.130.216:10443/zosmf/
+        ssl_protocol: TLSv1.2  # Add this

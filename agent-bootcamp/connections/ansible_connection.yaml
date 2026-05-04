@@ -1,0 +1,14 @@
+spec_version: v1
+kind: connection
+app_id: ansible
+environments:
+    draft:  # in draft each person needs to provide their own basic credentials
+        kind: basic
+        type: team
+        sso: false
+        server_url: https://itzvsi-270003c7ev-wvl7wcg2.techzone.ibm.com:8443/
+    live:
+        kind: basic # note it's possible to auth different in the deployed live agent vs the draft agent
+        type: member
+        sso: false
+        server_url: https://itzvsi-270003c7ev-wvl7wcg2.techzone.ibm.com:8443/

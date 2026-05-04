@@ -1,0 +1,452 @@
+openapi: 3.0.0
+info:
+  description: z/OSMF TSO/E Address Space Services API for executing TSO commands
+  title: z/OSMF TSO Command API
+  version: 1.0.0
+  contact:
+    name: IBM z/OSMF Documentation
+    url: https://www.ibm.com/docs/en/zos/2.5.0?topic=services-tsoe-address-space-services
+  x-ibm-grounded-description: false
+  x-csrf-zosmf-header: false
+
+servers:
+  - url: https://itzvsi-270003c7ev-wvl7wcg2.techzone.ibm.com/zosmf/
+    description: z/OSMF server endpoint
+
+paths:
+  /tsoApp/v1/tso:
+    put:
+      operationId: executeTsoCommand
+      summary: Execute a TSO command in an existing TSO address space
+      description: |
+        Executes a TSO/E command in an existing TSO address space via z/OSMF.
+        The command is sent to the TSO session identified by the servlet key.
+        
+        **Common TSO Commands:**
+        - TIME - Display current time and date
+        - LISTDS - List dataset information
+        - LISTCAT - List catalog entries
+        - ALLOCATE - Allocate datasets
+        - DELETE - Delete datasets
+        - RENAME - Rename datasets
+        - SEND - Send messages to users
+        - PROFILE - Display or modify TSO profile
+        
+        **Workflow:**
+        1. First, create a TSO address space (POST /restfiles/tso/start)
+        2. Execute commands using this endpoint (PUT /restfiles/tso/{servletKey})
+        3. Retrieve command output (GET /restfiles/tso/{servletKey})
+        4. End the TSO session (DELETE /restfiles/tso/{servletKey})
+        
+        **Security:**
+        - Requires valid z/OS credentials
+        - User must have TSO segment defined in security system
+        - Commands execute with user's authority
+      
+      security:
+        - BasicAuth: []
+      
+      requestBody:
+        description: The TSO command to execute
+        required: true
+        x-ibm-body-name: tso_command
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tsoCmd
+              properties:
+                tsoCmd:
+                  type: string
+                  description: |
+                    The TSO command to execute.
+                    Can be any valid TSO system command.
+            examples:
+              timeCommand:
+                summary: Execute TIME command
+                value:
+                  tsoCmd: "TIME"
+      
+      responses:
+        '200':
+          description: Command executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - servletKey
+                  - ver
+                  - reused
+                  - timeout
+                properties:
+                  servletKey:
+                    type: string
+                    description: The servlet key for this TSO session
+                    example: "TSOSERVLET-127-aabccddeeff"
+                  
+                  ver:
+                    type: string
+                    description: API version
+                    example: "0100"
+                  
+                  reused:
+                    type: boolean
+                    description: Indicates if the TSO session was reused
+                    example: true
+                  
+                  timeout:
+                    type: boolean
+                    description: Indicates if a timeout occurred
+                    example: false
+                  
+                  sessionID:
+                    type: string
+                    description: The TSO session ID
+                    example: "0x37"
+                  
+                  tsoData:
+                    type: array
+                    description: Array of TSO response data
+                    items:
+                      type: object
+                      properties:
+                        TSO MESSAGE:
+                          type: object
+                          properties:
+                            VERSION:
+                              type: string
+                              example: "0100"
+                            DATA:
+                              type: string
+                              description: The command output or message
+                              example: "TIME=13:45:32  DATE=2024/03/08"
+                  
+                  appID:
+                    type: string
+                    description: Application ID
+                    example: "IZUFPROC"
+              
+              examples:
+                timeCommandResponse:
+                  summary: Response from TIME command
+                  value:
+                    servletKey: "TSOSERVLET-127-aabccddeeff"
+                    ver: "0100"
+                    reused: true
+                    timeout: false
+                    sessionID: "0x37"
+                    tsoData:
+                      - TSO MESSAGE:
+                          VERSION: "0100"
+                          DATA: "TIME=13:45:32  DATE=2024/03/08"
+                      - TSO PROMPT:
+                          VERSION: "0100"
+                          HIDDEN: "false"
+                    appID: "IZUFPROC"
+                
+                listdsResponse:
+                  summary: Response from LISTDS command
+                  value:
+                    servletKey: "TSOSERVLET-127-aabccddeeff"
+                    ver: "0100"
+                    reused: true
+                    timeout: false
+                    tsoData:
+                      - TSO MESSAGE:
+                          VERSION: "0100"
+                          DATA: "USER.TEST.DATA"
+                      - TSO MESSAGE:
+                          VERSION: "0100"
+                          DATA: "--RECFM-LRECL-BLKSIZE-DSORG"
+                      - TSO MESSAGE:
+                          VERSION: "0100"
+                          DATA: "  FB    80    3120   PS"
+        
+        '400':
+          description: Bad Request - Invalid command or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidCommand:
+                  summary: Invalid TSO command
+                  value:
+                    category: 1
+                    rc: 4
+                    reason: 0
+                    message: "Invalid TSO command"
+                    details:
+                      - "The command syntax is incorrect"
+                      - "Check TSO command reference"
+                
+                missingData:
+                  summary: Missing DATA field
+                  value:
+                    category: 1
+                    rc: 4
+                    reason: 0
+                    message: "Missing required field 'DATA'"
+                    details:
+                      - "The DATA field in TSO RESPONSE is required"
+        
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Authentication required"
+                details:
+                  - "Valid z/OS credentials must be provided"
+        
+        '403':
+          description: Forbidden - Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                category: 1
+                rc: 8
+                reason: 913
+                message: "Access denied"
+                details:
+                  - "User does not have TSO authority"
+                  - "Contact your security administrator"
+        
+        '404':
+          description: TSO session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                category: 4
+                rc: 8
+                reason: 0
+                message: "TSO session not found"
+                details:
+                  - "The specified servlet key does not exist"
+                  - "The TSO session may have timed out"
+                  - "Create a new TSO session with POST /restfiles/tso/start"
+        
+        '500':
+          description: Internal Server Error - z/OSMF or z/OS system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                systemError:
+                  summary: System error during command execution
+                  value:
+                    category: 8
+                    rc: 16
+                    reason: 0
+                    message: "System error occurred"
+                    details:
+                      - "Unable to execute TSO command"
+                      - "Check z/OSMF logs for details"
+                
+                tsoTimeout:
+                  summary: TSO session timeout
+                  value:
+                    category: 8
+                    rc: 12
+                    reason: 0
+                    message: "TSO session timeout"
+                    details:
+                      - "The TSO session has timed out"
+                      - "Create a new session and retry"
+
+  /restfiles/tso/start:
+    post:
+      operationId: startTsoSession
+      summary: Start a new TSO address space session
+      description: |
+        Creates a new TSO/E address space for executing TSO commands.
+        Returns a servlet key that identifies the session for subsequent commands.
+        
+        **Session Management:**
+        - Sessions remain active for a configured timeout period
+        - Use the servlet key for all subsequent command executions
+        - End the session with DELETE /restfiles/tso/{servletKey} when done
+        
+        **Account Information:**
+        - Account number and procedure name can be specified
+        - If not provided, defaults from user's TSO segment are used
+      
+      security:
+        - BasicAuth: []
+      
+      parameters:
+        - name: X-CSFR-ZOSMF-HEADER
+          in: header
+          description: CSRF protection header for z/OSMF
+          required: false
+          schema:
+            type: boolean
+            default: true
+      
+      requestBody:
+        description: TSO session startup parameters
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                acct:
+                  type: string
+                  description: TSO account number
+                  example: "ACCT#"
+                proc:
+                  type: string
+                  description: TSO logon procedure name
+                  example: "IZUFPROC"
+                chset:
+                  type: string
+                  description: Character set
+                  example: "697"
+                cpage:
+                  type: string
+                  description: Code page
+                  example: "1047"
+                rows:
+                  type: integer
+                  description: Number of rows for the terminal
+                  example: 24
+                cols:
+                  type: integer
+                  description: Number of columns for the terminal
+                  example: 80
+                rsize:
+                  type: integer
+                  description: Region size in KB
+                  example: 65536
+            example:
+              proc: "IZUFPROC"
+              chset: "697"
+              cpage: "1047"
+              rows: 24
+              cols: 80
+      
+      responses:
+        '200':
+          description: TSO session started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - servletKey
+                properties:
+                  servletKey:
+                    type: string
+                    description: |
+                      The servlet key identifying this TSO session.
+                      Use this key for all subsequent command executions.
+                    example: "TSOSERVLET-127-aabccddeeff"
+                  ver:
+                    type: string
+                    description: API version
+                    example: "0100"
+                  reused:
+                    type: boolean
+                    description: Indicates if an existing session was reused
+                    example: false
+                  timeout:
+                    type: boolean
+                    description: Indicates if a timeout occurred
+                    example: false
+              example:
+                servletKey: "TSOSERVLET-127-aabccddeeff"
+                ver: "0100"
+                reused: false
+                timeout: false
+        
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        
+        '403':
+          description: Forbidden - User does not have TSO authority
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: |
+        Basic authentication using z/OS user ID and password.
+        User must have a TSO segment defined in the security system.
+  
+  schemas:
+    Error:
+      type: object
+      description: Error response object returned by z/OSMF
+      required:
+        - message
+      properties:
+        category:
+          type: integer
+          description: |
+            Error category code:
+            - 0: Success with warnings
+            - 1: Client error (4xx)
+            - 4: Resource not found
+            - 8: Server/system error (5xx)
+          example: 1
+        
+        rc:
+          type: integer
+          description: |
+            Return code from z/OS or z/OSMF.
+            Higher values indicate more severe errors.
+          example: 8
+        
+        reason:
+          type: integer
+          description: |
+            Reason code providing additional error context.
+            Interpretation depends on the rc value.
+          example: 0
+        
+        message:
+          type: string
+          description: Human-readable error message
+          example: "TSO command execution failed"
+        
+        details:
+          type: array
+          items:
+            type: string
+          description: Additional error details and suggestions
+          example:
+            - "The TSO command could not be executed"
+            - "Check command syntax and permissions"
+        
+        stack:
+          type: string
+          description: Stack trace (only included in debug mode)
+          example: "Error at line 123..."
+
+# Made with Bob

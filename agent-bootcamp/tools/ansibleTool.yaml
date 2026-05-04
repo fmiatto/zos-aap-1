@@ -1,0 +1,309 @@
+openapi: 3.0.0
+info:
+  description: Ansible Automation Platform API for managing and launching job templates
+  title: Ansible Automation Platform API
+  version: 1.0.0
+  x-ibm-grounded-description: false
+servers:
+- url: https://itzvsi-270003c7ev-wvl7wcg2.techzone.ibm.com:8443/
+  description: Ansible Automation Platform Server
+security:
+  - BasicAuth: []
+paths:
+  /api/v2/job_templates/:
+    get:
+      summary: List all job templates
+      description: |
+        Retrieve a list of all job templates available in the Ansible Automation Platform.
+        This endpoint returns template metadata including ID, name, description, and other properties.
+      operationId: listJobTemplates
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          description: Number of results per page
+          required: false
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Successfully retrieved job templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    description: Total number of job templates
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/JobTemplate'
+        '401':
+          description: Unauthorized - Invalid credentials
+        '403':
+          description: Forbidden - Insufficient permissions
+
+  /api/v2/job_templates/{id}/:
+    get:
+      summary: Get a specific job template
+      description: |
+        Retrieve detailed information about a specific job template by its ID.
+      operationId: getJobTemplate
+      parameters:
+        - name: id
+          in: path
+          description: The ID of the job template
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully retrieved job template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobTemplate'
+        '401':
+          description: Unauthorized - Invalid credentials
+        '404':
+          description: Job template not found
+
+  /api/v2/job_templates/{id}/launch/:
+    post:
+      summary: Launch a job template
+      description: |
+        Launch a job from a job template. This endpoint starts the execution of an Ansible playbook
+        defined in the template. You can optionally provide extra variables, inventory, and other
+        runtime parameters to override template defaults.
+      operationId: launchJobTemplate
+      parameters:
+        - name: id
+          in: path
+          description: The ID of the job template to launch
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        description: Optional parameters to override template defaults
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                extra_vars:
+                  type: object
+                  description: Additional variables to pass to the playbook
+                  additionalProperties: true
+                inventory:
+                  type: integer
+                  description: Inventory ID to use (overrides template default)
+                limit:
+                  type: string
+                  description: Limit the execution to specific hosts
+                job_tags:
+                  type: string
+                  description: Comma-separated list of tags to run
+                skip_tags:
+                  type: string
+                  description: Comma-separated list of tags to skip
+                credentials:
+                  type: array
+                  description: List of credential IDs to use
+                  items:
+                    type: integer
+            examples:
+              basic:
+                summary: Basic launch without parameters
+                value: {}
+              with_extra_vars:
+                summary: Launch with extra variables
+                value:
+                  extra_vars:
+                    target_host: "mainframe01"
+                    operation: "restart"
+                    timeout: 300
+              with_limit:
+                summary: Launch with host limit
+                value:
+                  limit: "webservers"
+                  extra_vars:
+                    version: "2.0"
+      responses:
+        '201':
+          description: Job successfully launched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          description: Bad request - Invalid parameters
+        '401':
+          description: Unauthorized - Invalid credentials
+        '403':
+          description: Forbidden - Insufficient permissions to launch template
+        '404':
+          description: Job template not found
+
+  /api/v2/jobs/{id}/:
+    get:
+      summary: Get job status
+      description: |
+        Retrieve the status and details of a running or completed job.
+        Use this endpoint to monitor job execution progress and retrieve results.
+      operationId: getJobStatus
+      parameters:
+        - name: id
+          in: path
+          description: The ID of the job
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully retrieved job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          description: Unauthorized - Invalid credentials
+        '404':
+          description: Job not found
+
+  /api/v2/jobs/{id}/stdout/:
+    get:
+      summary: Get job output
+      description: |
+        Retrieve the standard output (stdout) from a job execution.
+        This includes the Ansible playbook execution logs.
+      operationId: getJobOutput
+      security:
+        - BasicAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: The ID of the job
+          required: true
+          schema:
+            type: integer
+        - name: format
+          in: query
+          description: Output format
+          required: false
+          schema:
+            type: string
+            enum: [json, txt, ansi, html]
+            default: json
+      responses:
+        '200':
+          description: Successfully retrieved job output
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: string
+                    description: The job output content
+            text/plain:
+              schema:
+                type: string
+        '401':
+          description: Unauthorized - Invalid credentials
+        '404':
+          description: Job not found
+
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: |
+        Basic authentication using Ansible Automation Platform username and password.
+        Credentials should be provided in the standard HTTP Basic Auth format.
+
+  schemas:
+    JobTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the job template
+        name:
+          type: string
+          description: Name of the job template
+        description:
+          type: string
+          description: Description of what the template does
+        job_type:
+          type: string
+          enum: [run, check]
+          description: Type of job (run or check mode)
+        inventory:
+          type: integer
+          description: ID of the inventory to use
+        project:
+          type: integer
+          description: ID of the project containing the playbook
+        playbook:
+          type: string
+          description: Path to the playbook file
+        extra_vars:
+          type: string
+          description: Extra variables in YAML or JSON format
+        created:
+          type: string
+          format: date-time
+          description: Timestamp when the template was created
+        modified:
+          type: string
+          format: date-time
+          description: Timestamp when the template was last modified
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique identifier for the job
+        name:
+          type: string
+          description: Name of the job
+        status:
+          type: string
+          enum: [new, pending, waiting, running, successful, failed, error, canceled]
+          description: Current status of the job
+        job_template:
+          type: integer
+          description: ID of the job template used
+        started:
+          type: string
+          format: date-time
+          description: Timestamp when the job started
+        finished:
+          type: string
+          format: date-time
+          description: Timestamp when the job finished
+        elapsed:
+          type: number
+          description: Elapsed time in seconds
+        job_args:
+          type: string
+          description: Arguments passed to the job
+        result_stdout:
+          type: string
+          description: Standard output from the job
+        created:
+          type: string
+          format: date-time
+          description: Timestamp when the job was created

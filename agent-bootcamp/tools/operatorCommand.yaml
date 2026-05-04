@@ -1,0 +1,269 @@
+openapi: 3.0.0
+info:
+  description: z/OSMF REST Console Services API for issuing operator commands
+  title: z/OSMF Console Command API
+  version: 1.0.0
+  x-ibm-grounded-description: false
+  x-csrf-zosmf-header: false  
+servers:
+- url: https://itzvsi-270003c7ev-wvl7wcg2.techzone.ibm.com/zosmf/
+paths:
+  /restconsoles/consoles/defcn:
+    put:
+      operationId: sendOperatorCommand
+      summary: Issue an operator command from the system console
+      description: |
+        Issues an MVS operator command through the z/OSMF REST console services.
+        The command is executed on the default console (defcn) and returns the command response.
+        
+        **Key Features:**
+        - Execute any MVS operator command
+        - Receive synchronous command responses
+        - Get message IDs and text from command output
+        - Support for solicited and unsolicited messages
+        
+        **Common Commands:**
+        - D A,L - Display active address spaces
+        - D U,DASD - Display DASD usage
+        - D IPLINFO - Display IPL information
+        - D M=CPU - Display CPU configuration
+        - F jobname,command - Modify job command
+        
+        **Security:**
+        - Requires valid z/OS credentials with console authority
+        - User must have appropriate RACF/SAF permissions for console commands
+      security:
+        - BasicAuth: []
+      parameters:
+        - name: X-CSFR-ZOSMF-HEADER
+          in: header
+          description: CSRF protection header for z/OSMF
+          required: false
+          schema:
+            type: boolean
+            default: true
+      requestBody:
+        description: The operator command to execute
+        required: true
+        x-ibm-body-name: command_request
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cmd
+              properties:
+                cmd:
+                  type: string
+                  description: |
+                    The MVS operator command to execute.
+                    Can be any valid MVS system command.
+                  example: "D A,L"
+            examples:
+              displayActive:
+                summary: Display active address spaces
+                value:
+                  cmd: "D A,L"
+              displayDasd:
+                summary: Display DASD usage
+                value:
+                  cmd: "D U,DASD"
+              iplInfo:
+                summary: Display IPL information
+                value:
+                  cmd: "D IPLINFO"
+      responses:
+        '200':
+          description: Command executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - cmd-response
+                properties:
+                  cmd-response:
+                    type: string
+                    description: |
+                      The solicited message key for this command response.
+                      Used to retrieve additional messages if needed.
+                    example: "C0000001"
+                  cmd-response-key:
+                    type: string
+                    description: The command response key
+                    example: "C0000001"
+                  cmd-response-url:
+                    type: string
+                    description: URL to retrieve additional command responses
+                    example: "/zosmf/restconsoles/consoles/defcn/solmsgs/C0000001"
+                  cmd-response-uri:
+                    type: string
+                    description: URI for the command response
+                    example: "/zosmf/restconsoles/consoles/defcn/solmsgs/C0000001"
+                  sol-key-detected:
+                    type: string
+                    description: |
+                      Indicates if a solicited message key was detected in the response.
+                      Values: "true" or "false"
+                    example: "true"
+              examples:
+                displayActiveResponse:
+                  summary: Response from D A,L command
+                  value:
+                    cmd-response: "C0000001"
+                    cmd-response-key: "C0000001"
+                    cmd-response-url: "/zosmf/restconsoles/consoles/defcn/solmsgs/C0000001"
+                    cmd-response-uri: "/zosmf/restconsoles/consoles/defcn/solmsgs/C0000001"
+                    sol-key-detected: "true"
+                
+                iplInfoResponse:
+                  summary: Response from D IPLINFO command
+                  value:
+                    cmd-response: "C0000002"
+                    cmd-response-key: "C0000002"
+                    cmd-response-url: "/zosmf/restconsoles/consoles/defcn/solmsgs/C0000002"
+                    sol-key-detected: "true"
+        
+        '400':
+          description: Bad Request - Invalid command or parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidCommand:
+                  summary: Invalid command syntax
+                  value:
+                    category: 1
+                    rc: 4
+                    reason: 0
+                    message: "Invalid command syntax"
+                    details:
+                      - "The command could not be parsed"
+                      - "Check command syntax and try again"
+                
+                missingParameter:
+                  summary: Missing required parameter
+                  value:
+                    category: 1
+                    rc: 4
+                    reason: 0
+                    message: "Missing required parameter 'cmd'"
+                    details:
+                      - "The 'cmd' parameter is required"
+        
+        '401':
+          description: Unauthorized - Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Authentication required"
+                details:
+                  - "Valid z/OS credentials must be provided"
+        
+        '403':
+          description: Forbidden - Insufficient console authority
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                category: 1
+                rc: 8
+                reason: 913
+                message: "Access denied"
+                details:
+                  - "User does not have console command authority"
+                  - "Contact your security administrator for CONSOLE access"
+        
+        '500':
+          description: Internal Server Error - z/OSMF or z/OS system error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                systemError:
+                  summary: System error during command execution
+                  value:
+                    category: 8
+                    rc: 16
+                    reason: 0
+                    message: "System error occurred"
+                    details:
+                      - "Unable to execute command on z/OS system"
+                      - "Check z/OSMF logs for details"
+                
+                consoleUnavailable:
+                  summary: Console not available
+                  value:
+                    category: 8
+                    rc: 12
+                    reason: 0
+                    message: "Console unavailable"
+                    details:
+                      - "The default console (defcn) is not available"
+                      - "Try again later or contact system administrator"
+
+components:
+  securitySchemes:
+    BasicAuth:
+      type: http
+      scheme: basic
+      description: |
+        Basic authentication using z/OS user ID and password.
+        User must have console command authority.
+  
+  schemas:
+    Error:
+      type: object
+      description: Error response object returned by z/OSMF
+      required:
+        - message
+      properties:
+        category:
+          type: integer
+          description: |
+            Error category code:
+            - 0: Success with warnings
+            - 1: Client error (4xx)
+            - 4: Resource not found
+            - 8: Server/system error (5xx)
+          example: 1
+        
+        rc:
+          type: integer
+          description: |
+            Return code from z/OS or z/OSMF.
+            Higher values indicate more severe errors.
+          example: 8
+        
+        reason:
+          type: integer
+          description: |
+            Reason code providing additional error context.
+            Interpretation depends on the rc value.
+          example: 0
+        
+        message:
+          type: string
+          description: Human-readable error message
+          example: "Command execution failed"
+        
+        details:
+          type: array
+          items:
+            type: string
+          description: Additional error details and suggestions
+          example:
+            - "The command could not be executed"
+            - "Check command syntax and permissions"
+        
+        stack:
+          type: string
+          description: Stack trace (only included in debug mode)
+          example: "Error at line 123..."
+
+# Made with Bob
