@@ -96,9 +96,13 @@
       no_log: false
       register: result_zos_operator
 
-    - name: Response from operator command.
-      debug:
-        msg: "{{ result_zos_operator.content }}"
+    - name: Short Response from operator command.
+      ansible.builtin.debug:
+        var: result_zos_operator.content
+
+    - name: Full Response from operator command.
+      ansible.builtin.debug:
+        var: result_zos_operator
 
     - name: Expose the output to the AAP API as an artifact
       set_stats:
