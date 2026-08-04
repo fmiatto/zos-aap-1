@@ -50,6 +50,27 @@
   environment: "{{ environment_vars }}"
 
   tasks:
+    - name: Check ibm.ibm_zos_core collection version on EE
+      ansible.builtin.command: ansible-galaxy collection list ibm.ibm_zos_core
+      delegate_to: localhost
+      run_once: true
+      register: ee_collection_out
+      changed_when: false
+
+    - name: Display installed collection version
+      ansible.builtin.debug:
+        var: ee_collection_out.stdout_lines
+      run_once: true    
+
+    - name: Check ZOAU version on z/OS target
+      ansible.builtin.command: zoaversion
+      register: zos_zoau_out
+      changed_when: false
+
+    - name: Display ZOAU version on z/OS
+      ansible.builtin.debug:
+        msg: "{{ zos_zoau_out.stdout_lines }}"
+    
     # ##########################################################################
     # Fact setting for use by this playbook
     # ##########################################################################
