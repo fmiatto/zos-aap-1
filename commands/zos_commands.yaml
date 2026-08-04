@@ -50,8 +50,11 @@
   environment: "{{ environment_vars }}"
 
   tasks:
-    - name: Check ibm.ibm_zos_core collection version on EE
-      ansible.builtin.command: ansible-galaxy collection list ibm.ibm_zos_core
+    - name: Find ibm.ibm_zos_core collection version on EE
+      ansible.builtin.command: >
+        python3 -c "import json, glob;
+        files = glob.glob('/**/ansible_collections/ibm/ibm_zos_core/MANIFEST.json', recursive=True);
+        print(json.load(open(files[0]))['collection_info']['version']) if files else print('Not found')"
       delegate_to: localhost
       run_once: true
       register: ee_collection_out
