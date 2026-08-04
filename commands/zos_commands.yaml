@@ -98,7 +98,11 @@
 
     - name: Short Response from operator command.
       ansible.builtin.debug:
-        var: result_zos_operator.content
+        var: "{{ result_zos_operator.stdout }}"
+
+    - name: Display z/OS Operator Command Output (Line-by-Line)
+      ansible.builtin.debug:
+        var: result_zos_operator.stdout_lines
 
     - name: Full Response from operator command.
       ansible.builtin.debug:
@@ -108,4 +112,4 @@
       set_stats:
         data:
           # This key will appear in the job's API response under "artifacts"
-          agent_inline_output: "{{ result_zos_operator.content | default('No command output returned') }}"
+          agent_inline_output: "{{ result_zos_operator.stdout | default('No command output returned') }}"
