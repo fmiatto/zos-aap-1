@@ -51,21 +51,8 @@
 
   tasks:
     - name: Find ibm.ibm_zos_core collection version on EE
-      ansible.builtin.command: >
-        python3 -c "
-        import json, os
-        paths = [
-          '/runner/requirements_collections/ansible_collections/ibm/ibm_zos_core/MANIFEST.json',
-          os.path.expanduser('~/.ansible/collections/ansible_collections/ibm/ibm_zos_core/MANIFEST.json'),
-          '/usr/share/ansible/collections/ansible_collections/ibm/ibm_zos_core/MANIFEST.json'
-        ]
-        for p in paths:
-            if os.path.exists(p):
-                print(json.load(open(p))['collection_info']['version'])
-                break
-        else:
-            print('Not found')
-        "
+      ansible.builtin.command: >-
+        python3 -c "import json, os; paths=['/runner/requirements_collections/ansible_collections/ibm/ibm_zos_core/MANIFEST.json', os.path.expanduser('~/.ansible/collections/ansible_collections/ibm/ibm_zos_core/MANIFEST.json'), '/usr/share/ansible/collections/ansible_collections/ibm/ibm_zos_core/MANIFEST.json']; print(next((json.load(open(p))['collection_info']['version'] for p in paths if os.path.exists(p)), 'Not found'))"
       delegate_to: localhost
       run_once: true
       register: ee_collection_out
@@ -74,7 +61,7 @@
     - name: Display installed collection version
       ansible.builtin.debug:
         msg: "Installed ibm.ibm_zos_core version on EE: {{ ee_collection_out.stdout }}"
-      run_once: true  
+      run_once: true
 
     - name: Check ZOAU version on z/OS target
       ansible.builtin.command: zoaversion
