@@ -45,7 +45,7 @@
     ctl_tmp_dir: "/tmp"
     system_name: "VS01"
     zos_operator_command: "{{ zos_operator_command_survey | default('D M=CPU') }}"
-    wait_time_s: "{{ wait_time_s_survey | default('1') }}"
+    wait_time: "{{ wait_time_s_survey | default('1') }}"
     verbose: "{{ verbose_survey | default('false') }}"
   environment: "{{ environment_vars }}"
 
@@ -53,23 +53,23 @@
     # ##########################################################################
     # Fact setting for use by this playbook
     # ##########################################################################
-    # - name: Detecting system name
-    #   ansible.builtin.command: uname -n
-    #   register: result
-    #   changed_when: false
+    - name: Detecting system name
+      ansible.builtin.command: uname -n
+      register: result
+      changed_when: false
 
-    # - name: Setting fact `system_name` for use by this sample
-    #   ansible.builtin.set_fact:
-    #     system_name: "{{ result.stdout }}"
+    - name: Setting fact `system_name` for use by this sample
+      ansible.builtin.set_fact:
+        system_name: "{{ result.stdout }}"
 
-    # - name: Fact `system_name` set with value
-    #   ansible.builtin.debug:
-    #     msg: "{{ system_name }}"
+    - name: Fact `system_name` set with value
+      ansible.builtin.debug:
+        msg: "{{ system_name }}"
 
     - name: Submit z/OS operator command.
       ibm.ibm_zos_core.zos_operator:
         cmd: "{{ zos_operator_command  }}"
-        wait_time_s: "{{ wait_time_s }}"
+        wait_time: "{{ wait_time }}"
         verbose: "{{ verbose }}"
       no_log: false
       register: result_zos_operator
